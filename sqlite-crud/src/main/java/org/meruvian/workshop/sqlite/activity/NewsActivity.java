@@ -1,10 +1,11 @@
-package org.meruvian.workshop.rest.activity;
+package org.meruvian.workshop.sqlite.activity;
 
 import android.app.SearchManager;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
+import android.support.v4.view.MenuItemCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.SearchView;
@@ -15,22 +16,13 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.EditText;
 import android.widget.ListView;
-import android.widget.Toast;
 
-import org.meruvian.workshop.rest.R;
-import org.meruvian.workshop.rest.adapter.NewsAdapter;
-import org.meruvian.workshop.rest.entity.News;
-import org.meruvian.workshop.rest.service.NewsClient;
-import org.meruvian.workshop.rest.service.ServiceGenerator;
+import org.meruvian.workshop.sqlite.R;
+import org.meruvian.workshop.sqlite.adapter.NewsAdapter;
+import org.meruvian.workshop.sqlite.content.database.adapter.NewsDatabaseAdapter;
+import org.meruvian.workshop.sqlite.entity.News;
 
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
-
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
-
 
 /**
  * Created by meruvian on 04/02/16.
@@ -38,14 +30,13 @@ import retrofit2.Response;
 public class NewsActivity extends AppCompatActivity {
 
     private ListView listNews;
-    private NewsAdapter newsAdapter;
-    private NewsClient client;
-    private String TAG = getClass().getSimpleName();
-    private News news;
     private EditText title, content;
+    private NewsAdapter newsAdapter;
+    private NewsDatabaseAdapter newsDatabaseAdapter;
+    private News news;
 
     @Override
-    protected void onCreate(@Nullable Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_news);
 
@@ -53,9 +44,9 @@ public class NewsActivity extends AppCompatActivity {
         title = (EditText) findViewById(R.id.edit_title);
         content = (EditText) findViewById(R.id.edit_content);
 
-        newsAdapter = new NewsAdapter(this, new ArrayList<News>());
-        client = ServiceGenerator.createService(NewsClient.class);
+        newsDatabaseAdapter = new NewsDatabaseAdapter(this);
 
+        newsAdapter = new NewsAdapter(this, newsDatabaseAdapter.findNewsAll());
         listNews.setAdapter(newsAdapter);
 
         listNews.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
@@ -65,8 +56,6 @@ public class NewsActivity extends AppCompatActivity {
                 return true;
             }
         });
-
-        newsGetTask("");
     }
 
     @Override
@@ -74,13 +63,15 @@ public class NewsActivity extends AppCompatActivity {
         getMenuInflater().inflate(R.menu.actions, menu);
 
         SearchManager searchManager = (SearchManager) getSystemService(Context.SEARCH_SERVICE);
-        SearchView searchView = (SearchView) menu.findItem(R.id.action_search).getActionView();
+        SearchView searchView = (SearchView) MenuItemCompat.getActionView(menu.findItem(R.id.action_search));
 
         searchView.setSearchableInfo(searchManager.getSearchableInfo(getComponentName()));
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String s) {
-                newsGetTask(s);
+                newsAdapter.clear();
+                newsAdapter.addNews(newsDatabaseAdapter.findNewsByTitle(s));
+
                 return false;
             }
 
@@ -90,79 +81,6 @@ public class NewsActivity extends AppCompatActivity {
             }
         });
         return true;
-    }
-
-    private void newsGetTask(String title) {
-        Call<List<News>> call = client.getNews(title);
-        call.enqueue(new Callback<List<News>>() {
-            @Override
-            public void onResponse(Response<List<News>> response) {
-                newsAdapter.clear();
-                newsAdapter.addNews(response.body());
-            }
-
-            @Override
-            public void onFailure(Throwable t) {
-                Toast.makeText(NewsActivity.this, t.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
-                Log.e(TAG, t.getLocalizedMessage() + " |\n| " + t.getMessage());
-            }
-        });
-    }
-
-    private void newsPostTask(News body) {
-        Call<News> call = client.postNews(news);
-        call.enqueue(new Callback<News>() {
-            @Override
-            public void onResponse(Response<News> response) {
-                title.setText("");
-                content.setText("");
-
-                news = new News();
-                newsGetTask("");
-            }
-
-            @Override
-            public void onFailure(Throwable t) {
-                Toast.makeText(NewsActivity.this, t.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
-                Log.e(TAG, t.getLocalizedMessage() + " |\n| " + t.getMessage());
-            }
-        });
-    }
-
-    private void newsPutTask(News body) {
-        Call<News> call = client.putNews(body.getId(), body);
-        call.enqueue(new Callback<News>() {
-            @Override
-            public void onResponse(Response<News> response) {
-                title.setText("");
-                content.setText("");
-
-                news = new News();
-                newsGetTask("");
-            }
-
-            @Override
-            public void onFailure(Throwable t) {
-                Toast.makeText(NewsActivity.this, t.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
-                Log.e(TAG, t.getLocalizedMessage() + " |\n| " + t.getMessage());
-            }
-        });
-    }
-
-    private void newsDeleteTask(int id) {
-        Call<Void> call = client.deleteNews(id);
-        call.enqueue(new Callback<Void>() {
-            @Override
-            public void onResponse(Response<Void> response) {
-                newsGetTask("");
-            }
-
-            @Override
-            public void onFailure(Throwable t) {
-                Toast.makeText(NewsActivity.this, t.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
-                Log.e(TAG, t.getLocalizedMessage() + " |\n| " + t.getMessage());
-            }
-        });
     }
 
     @Override
@@ -179,15 +97,17 @@ public class NewsActivity extends AppCompatActivity {
             news.setTitle(title.getText().toString());
             news.setCreateDate(new Date().getTime());
 
-            if (news.getId() == -1) {
-                newsPostTask(news);
-            } else {
-                newsPutTask(news);
-            }
+            newsDatabaseAdapter.save(news);
+            newsAdapter.clear();
+            newsAdapter.addNews(newsDatabaseAdapter.findNewsAll());
 
+            title.setText("");
+            content.setText("");
+            news = new News();
             return true;
         } else if (id == R.id.action_refresh) {
-            newsGetTask("");
+            newsAdapter.clear();
+            newsAdapter.addNews(newsDatabaseAdapter.findNewsAll());
             return true;
         }
 
@@ -200,7 +120,7 @@ public class NewsActivity extends AppCompatActivity {
         builder.setItems(new String[]{getString(R.string.edit), getString(R.string.delete)}, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int location) {
-                news = (News) newsAdapter.getItem(position);
+                news = newsDatabaseAdapter.findNewsById(((News) newsAdapter.getItem(position)).getId());
                 if (location == 0) {
                     if (news != null) {
                         title.setText(news.getTitle());
@@ -209,22 +129,25 @@ public class NewsActivity extends AppCompatActivity {
                         title.requestFocus();
                     }
                 } else if (location == 1) {
-                    confirmDelete(news.getId());
+                    if (news != null) {
+                        confirmDelete(news);
+                    }
                 }
             }
         });
         builder.create().show();
     }
 
-    private void confirmDelete(final int id) {
+    private void confirmDelete(final News news) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle(getString(R.string.delete));
-        builder.setMessage(getString(R.string.confirm_delete));
+        builder.setMessage(getString(R.string.confirm_delete) + " '" + news.getTitle() + "' ?");
         builder.setPositiveButton(getString(R.string.yes), new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
-                newsDeleteTask(id);
-                news = new News();
+                newsDatabaseAdapter.delete(news);
+                newsAdapter.clear();
+                newsAdapter.addNews(newsDatabaseAdapter.findNewsAll());
             }
         });
         builder.setNegativeButton(getString(R.string.no), new DialogInterface.OnClickListener() {
@@ -235,5 +158,4 @@ public class NewsActivity extends AppCompatActivity {
         });
         builder.create().show();
     }
-    
 }

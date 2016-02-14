@@ -4,6 +4,7 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
+import android.util.Log;
 
 import org.meruvian.workshop.sqlite.content.NewsContentProvider;
 import org.meruvian.workshop.sqlite.content.database.model.NewsDatabaseModel;
@@ -44,8 +45,8 @@ public class NewsDatabaseAdapter {
     }
 
     public List<News> findNewsByTitle(String title){
-        String query = NewsDatabaseModel.TITLE + "like ? AND "+NewsDatabaseModel.STATUS + "= ?";
-        String[] parameter = {" % "+title+" % ","1"};
+        String query = NewsDatabaseModel.TITLE + " like ? AND "+NewsDatabaseModel.STATUS + " = ?";
+        String[] parameter = {"%"+title+"%","1"};
 
         Cursor cursor = context.getContentResolver().query(dbUriNews, null, query, parameter, NewsDatabaseModel.CREATE_DATE);
 
