@@ -1,4 +1,4 @@
-package org.meruvian.workshop.form.adapter;
+package org.meruvian.workshop.rest.adapter;
 
 import android.content.Context;
 import android.view.LayoutInflater;
@@ -7,8 +7,8 @@ import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.TextView;
 
-import org.meruvian.workshop.form.R;
-import org.meruvian.workshop.form.entity.News;
+import org.meruvian.workshop.rest.R;
+import org.meruvian.workshop.rest.entity.News;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -33,6 +33,26 @@ public class NewsAdapter extends BaseAdapter {
         this.newses = newses;
 
         inflater = (LayoutInflater)context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+    }
+
+    public void addNews(News news) {
+        newses.add(news);
+        notifyDataSetChanged();
+    }
+
+    public void addNews(List<News> categories) {
+        this.newses.addAll(categories);
+        notifyDataSetChanged();
+    }
+
+    public void clear() {
+        newses.clear();
+        notifyDataSetChanged();
+    }
+
+    public void remove(int position) {
+        newses.remove(position);
+        notifyDataSetChanged();;
     }
 
     @Override

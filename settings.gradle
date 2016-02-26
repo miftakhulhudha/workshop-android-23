@@ -1,1 +1,1 @@
-include ':form', ':fragment', ':sqliteCrud', ':restCrud'
+include ':form', ':form-action', ':form-list', ':form-list-dialog', ':form-crud', ':fragment', ':sqlite-crud', ':sqlite', ':rest', ':rest-crud'

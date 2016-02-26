@@ -31,7 +31,7 @@ public class NewsFragment extends Fragment {
     private NewsAdapter newsAdapter;
 
     @Override
-    public void onCreate(@Nullable Bundle savedInstanceState) {
+    public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setHasOptionsMenu(true);
     }
